@@ -1,7 +1,5 @@
 package lab2;
-import java.util.Arrays;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.CountDownLatch;
 
 public class Main {
     public synchronized static void main(String[] args) throws InterruptedException {
@@ -13,14 +11,12 @@ public class Main {
         Matrix MR = new Matrix("./task1/MR.txt").initWithRandomValues();
         Matrix MS = new Matrix("./task1/MS.txt").initWithRandomValues();
         // Create locker condition
-        ReentrantLock locker = new ReentrantLock();
+        CountDownLatch counter1 = new CountDownLatch(1);
         Thread task1 = new Thread(() -> {
-            // start locking the flow
-            locker.lock();
             // 1. SORT(P)
             P.sort();
             // unlock the flow
-            locker.unlock();
+            counter1.countDown();
         });
         // Copy values, because they are variables
         Matrix finalMR = MR;
@@ -32,14 +28,15 @@ public class Main {
                     // 3. SORT(MR*MS);
                     .sort();
             // Wait till sorting of P will be finished
-            locker.lock();
+            try {
+                counter1.await();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
             // 4. SORT(P) * SORT(MR*MS)
             P.multiplyWithMatrix(Result)
                     .printResult()
                     .saveFinalResult("./task1/O.txt");
-            // Unlock and leave locker
-            locker.unlock();
-
         });
         task1.start();
         task2.start();
@@ -55,15 +52,14 @@ public class Main {
         Matrix MC = new Matrix("./task2/MC.txt").initWithRandomValues();
         MR = new Matrix("./task2/MR.txt").initWithRandomValues();
         Matrix MM = new Matrix("./task2/MM.txt").initWithRandomValues();
+        CountDownLatch counter2 = new CountDownLatch(1);
         // Copy values, because they are variables
         Matrix finalMS1 = MS;
         Thread task3 = new Thread(() -> {
-            // start locking the flow
-            locker.lock();
             // 1. MB * MS
             MB.multiplyWithMatrix(finalMS1);
             // unlock the flow
-            locker.unlock();
+            counter2.countDown();
         });
         Matrix finalMR1 = MR;
         Thread task4 = new Thread(() -> {
@@ -73,14 +69,16 @@ public class Main {
                     // 3. MC * (MR + MM)
                     .multiplyWithMatrix(MC);
             // Wait till MB * MS will be finished
-            locker.lock();
+            try {
+                counter2.await();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
             finalMR1
                     // 4. (MB * MS) + (MC * (MR + MM))
                     .sumWithMatrix(MB)
                     .printResult()
                     .saveFinalResult("./task2/MG.txt");
-            // Unlock and leave locker
-            locker.unlock();
         });
         task3.start();
         task4.start();
